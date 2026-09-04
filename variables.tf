@@ -12,7 +12,7 @@ variable "image_name" {
 variable "external_port" {
   description = "Puerto externo de Apache"
   type        = number
-  default     = 8084
+  default     = 8082
 }
 
 variable "phpmyadmin_port" {
