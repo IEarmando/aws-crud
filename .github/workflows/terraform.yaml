@@ -6,23 +6,10 @@ on:
       - pre
     types: [closed]
 
-permissions:
-  contents: read
-
-concurrency:
-  group: terraform-docker-pre
-  cancel-in-progress: false
-
 jobs:
-
   build-and-deploy:
     name: Build and Deploy to Pre
-
-    if: >
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.ref == 'dev' &&
-      github.event.pull_request.base.ref == 'pre'
-
+    if: github.event.pull_request.merged == true && github.head_ref == 'dev'
     runs-on: ubuntu-latest
 
     env:
@@ -39,7 +26,7 @@ jobs:
       # CHECKOUT
       # ====================================================
 
-      - name: Checkout Pre
+      - name: Checkout Code
         uses: actions/checkout@v6
         with:
           ref: pre
