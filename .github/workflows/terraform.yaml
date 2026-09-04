@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    name: Build and Deploy to Pre
+    name: Build and Deploy Terraform Docker
     if: github.event.pull_request.merged == true && github.head_ref == 'dev'
     runs-on: ubuntu-latest
 
