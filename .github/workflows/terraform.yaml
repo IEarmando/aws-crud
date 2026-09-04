@@ -9,19 +9,18 @@ on:
 jobs:
   build-and-deploy:
     name: Build and Deploy Terraform Docker
+
     if: github.event.pull_request.merged == true && github.head_ref == 'dev'
+
     runs-on: ubuntu-latest
 
     env:
       TF_IN_AUTOMATION: true
-
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_db_root_password: ${{ secrets.DB_ROOT_PASSWORD }}
-
       TF_VAR_image_name: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
 
     steps:
-
       # ====================================================
       # CHECKOUT
       # ====================================================
@@ -30,7 +29,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: pre
-
 
       # ====================================================
       # DOCKER HUB
@@ -42,14 +40,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-
       # ====================================================
       # DOCKER BUILDX
       # ====================================================
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
 
       # ====================================================
       # BUILD + PUSH PHP/APACHE IMAGE
@@ -65,7 +61,6 @@ jobs:
           provenance: false
           sbom: false
 
-
       # ====================================================
       # PULL IMAGE INTO RUNNER
       # ====================================================
@@ -73,7 +68,6 @@ jobs:
       - name: Pull Application Image
         run: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
-
 
       # ====================================================
       # TERRAFORM
@@ -84,14 +78,12 @@ jobs:
         with:
           terraform_version: 1.15.8
 
-
       # ====================================================
       # TERRAFORM INIT
       # ====================================================
 
       - name: Terraform Init
         run: terraform init
-
 
       # ====================================================
       # TERRAFORM FORMAT
@@ -100,14 +92,12 @@ jobs:
       - name: Terraform Format
         run: terraform fmt -check
 
-
       # ====================================================
       # TERRAFORM VALIDATE
       # ====================================================
 
       - name: Terraform Validate
         run: terraform validate
-
 
       # ====================================================
       # TERRAFORM PLAN
@@ -116,14 +106,12 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-
       # ====================================================
       # TERRAFORM APPLY
       # ====================================================
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
-
 
       # ====================================================
       # VERIFY CONTAINERS
@@ -134,15 +122,18 @@ jobs:
           docker ps
           terraform output
 
-
       # ====================================================
       # TEST PHP/APACHE
       # ====================================================
 
       - name: Test PHP Apache
         run: |
+          WEB_URL=$(terraform output -json services | jq -r '.web.url')
+
+          echo "Testing: $WEB_URL"
+
           for i in {1..10}; do
-            if curl --fail --silent http://localhost:8082; then
+            if curl --fail --silent "$WEB_URL"; then
               echo "PHP Apache OK"
               exit 0
             fi
@@ -153,15 +144,18 @@ jobs:
 
           exit 1
 
-
       # ====================================================
       # TEST PHPMYADMIN
       # ====================================================
 
       - name: Test phpMyAdmin
         run: |
+          PHPMYADMIN_URL=$(terraform output -json services | jq -r '.phpmyadmin.url')
+
+          echo "Testing: $PHPMYADMIN_URL"
+
           for i in {1..10}; do
-            if curl --fail --silent http://localhost:8081 > /dev/null; then
+            if curl --fail --silent "$PHPMYADMIN_URL" > /dev/null; then
               echo "phpMyAdmin OK"
               exit 0
             fi
@@ -171,7 +165,6 @@ jobs:
           done
 
           exit 1
-
 
       # ====================================================
       # SLACK
