@@ -107,7 +107,7 @@ output "services" {
       url          = "http://localhost:${var.external_port}"
       container    = docker_container.php.name
       container_id = docker_container.php.id
-      image        = var.image_name    
+      image        = var.image_name
     }
 
     database = {
