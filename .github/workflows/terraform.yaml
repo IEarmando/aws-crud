@@ -1,0 +1,136 @@
+name: Terraform Docker Pipeline
+
+on:
+  pull_request:
+    branches:
+      - pre
+    types: [closed]
+
+permissions:
+  contents: read
+
+env:
+  DOCKER_REGISTRY: https://index.docker.io/v1/
+
+jobs:
+  build-and-deploy:
+
+    name: Build and Deploy to Pre
+
+    if: github.event.pull_request.merged == true && github.head_ref == 'dev'
+
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_db_root_password: ${{ secrets.DB_ROOT_PASSWORD }}
+      TF_VAR_image_name: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache
+
+    steps:
+
+      # CHECKOUT
+
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+
+      # DOCKER LOGIN
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # DOCKER BUILDX
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # BUILD AND PUSH APP IMAGE
+
+      - name: Build and Push PHP Apache Image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+
+
+      # TERRAFORM
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+
+
+      # TERRAFORM INIT
+
+      - name: Terraform Init
+        run: terraform init
+
+
+      # TERRAFORM FORMAT
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+
+      # TERRAFORM VALIDATE
+
+      - name: Terraform Validate
+        run: terraform validate
+
+
+      # TERRAFORM PLAN
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+
+      # TERRAFORM APPLY
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+
+      # VERIFY
+
+      - name: Verify Containers
+        run: |
+          docker ps
+          terraform output
+
+
+      # TEST WEB
+
+      - name: Test PHP Apache
+        run: |
+          sleep 10
+          curl -f http://localhost:8082
+
+
+      # TEST PHPMYADMIN
+
+      - name: Test phpMyAdmin
+        run: |
+          curl -f http://localhost:8081
+
+
+      # SLACK
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v3
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "C0BV7BFRWUU",
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ github.workflow }}*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Origen:* `${{ github.event.pull_request.head.ref }}` -> *Destino:* `${{ github.event.pull_request.base.ref }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
+            }
