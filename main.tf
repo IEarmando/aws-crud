@@ -46,18 +46,13 @@ resource "docker_container" "mysql" {
 }
 
 resource "docker_image" "php" {
-  name = var.image_name
-
-  build {
-    context    = "${path.module}/app"
-    dockerfile = "Dockerfile"
-  }
+  name         = var.image_name
+  keep_locally = true
 }
 
 resource "docker_container" "php" {
   name  = var.container_name
-  image = docker_image.php.image_id
-
+  image = var.image_name
   ports {
     internal = 80
     external = var.external_port
@@ -112,7 +107,7 @@ output "services" {
       url          = "http://localhost:${var.external_port}"
       container    = docker_container.php.name
       container_id = docker_container.php.id
-      image        = docker_image.php.name
+      image        = var.image_name    
     }
 
     database = {

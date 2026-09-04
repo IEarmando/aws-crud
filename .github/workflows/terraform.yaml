@@ -9,32 +9,45 @@ on:
 permissions:
   contents: read
 
-env:
-  DOCKER_REGISTRY: https://index.docker.io/v1/
+concurrency:
+  group: terraform-docker-pre
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
 
+  build-and-deploy:
     name: Build and Deploy to Pre
 
-    if: github.event.pull_request.merged == true && github.head_ref == 'dev'
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'dev' &&
+      github.event.pull_request.base.ref == 'pre'
 
     runs-on: ubuntu-latest
 
     env:
+      TF_IN_AUTOMATION: true
+
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_db_root_password: ${{ secrets.DB_ROOT_PASSWORD }}
-      TF_VAR_image_name: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache
+
+      TF_VAR_image_name: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
 
     steps:
 
+      # ====================================================
       # CHECKOUT
+      # ====================================================
 
-      - name: Checkout Code
+      - name: Checkout Pre
         uses: actions/checkout@v6
+        with:
+          ref: pre
 
 
-      # DOCKER LOGIN
+      # ====================================================
+      # DOCKER HUB
+      # ====================================================
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -42,25 +55,42 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+
+      # ====================================================
       # DOCKER BUILDX
+      # ====================================================
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # BUILD AND PUSH APP IMAGE
+
+      # ====================================================
+      # BUILD + PUSH PHP/APACHE IMAGE
+      # ====================================================
 
       - name: Build and Push PHP Apache Image
         uses: docker/build-push-action@v7
         with:
           context: ./app
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache
+          tags: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
           platforms: linux/amd64
           provenance: false
           sbom: false
 
 
+      # ====================================================
+      # PULL IMAGE INTO RUNNER
+      # ====================================================
+
+      - name: Pull Application Image
+        run: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
+
+
+      # ====================================================
       # TERRAFORM
+      # ====================================================
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -68,37 +98,49 @@ jobs:
           terraform_version: 1.15.8
 
 
+      # ====================================================
       # TERRAFORM INIT
+      # ====================================================
 
       - name: Terraform Init
         run: terraform init
 
 
+      # ====================================================
       # TERRAFORM FORMAT
+      # ====================================================
 
       - name: Terraform Format
         run: terraform fmt -check
 
 
+      # ====================================================
       # TERRAFORM VALIDATE
+      # ====================================================
 
       - name: Terraform Validate
         run: terraform validate
 
 
+      # ====================================================
       # TERRAFORM PLAN
+      # ====================================================
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
 
+      # ====================================================
       # TERRAFORM APPLY
+      # ====================================================
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
 
 
-      # VERIFY
+      # ====================================================
+      # VERIFY CONTAINERS
+      # ====================================================
 
       - name: Verify Containers
         run: |
@@ -106,22 +148,47 @@ jobs:
           terraform output
 
 
-      # TEST WEB
+      # ====================================================
+      # TEST PHP/APACHE
+      # ====================================================
 
       - name: Test PHP Apache
         run: |
-          sleep 10
-          curl -f http://localhost:8082
+          for i in {1..10}; do
+            if curl --fail --silent http://localhost:8082; then
+              echo "PHP Apache OK"
+              exit 0
+            fi
+
+            echo "Waiting for PHP Apache..."
+            sleep 5
+          done
+
+          exit 1
 
 
+      # ====================================================
       # TEST PHPMYADMIN
+      # ====================================================
 
       - name: Test phpMyAdmin
         run: |
-          curl -f http://localhost:8081
+          for i in {1..10}; do
+            if curl --fail --silent http://localhost:8081 > /dev/null; then
+              echo "phpMyAdmin OK"
+              exit 0
+            fi
+
+            echo "Waiting for phpMyAdmin..."
+            sleep 5
+          done
+
+          exit 1
 
 
+      # ====================================================
       # SLACK
+      # ====================================================
 
       - name: Notify Slack
         if: always()
