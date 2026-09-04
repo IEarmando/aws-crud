@@ -46,8 +46,12 @@ resource "docker_container" "mysql" {
 }
 
 resource "docker_image" "php" {
-  name         = var.image_name
-  keep_locally = true
+  name = var.image_name
+
+  build {
+    context    = "${path.module}/app"
+    dockerfile = "Dockerfile"
+  }
 }
 
 resource "docker_container" "php" {
