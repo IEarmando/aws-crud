@@ -46,13 +46,18 @@ resource "docker_container" "mysql" {
 }
 
 resource "docker_image" "php" {
-  name         = var.image_name
-  keep_locally = true
+  name = var.image_name
+
+  build {
+    context    = "${path.module}/app"
+    dockerfile = "Dockerfile"
+  }
 }
 
 resource "docker_container" "php" {
   name  = var.container_name
-  image = var.image_name
+  image = docker_image.php.image_id
+
   ports {
     internal = 80
     external = var.external_port
@@ -72,6 +77,8 @@ resource "docker_container" "php" {
   depends_on = [
     docker_container.mysql
   ]
+
+  restart = "unless-stopped"
 }
 
 resource "docker_image" "phpmyadmin" {
@@ -99,6 +106,8 @@ resource "docker_container" "phpmyadmin" {
   depends_on = [
     docker_container.mysql
   ]
+
+  restart = "unless-stopped"
 }
 
 output "services" {
