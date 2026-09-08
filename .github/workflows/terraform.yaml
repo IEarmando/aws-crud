@@ -26,7 +26,7 @@ jobs:
 
       - name: Restore Terraform State
         id: terraform-state
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             terraform.tfstate
@@ -97,7 +97,7 @@ jobs:
 
       - name: Save Terraform State
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             terraform.tfstate
