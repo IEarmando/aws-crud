@@ -1,4 +1,4 @@
-name: Terraform Docker Pipeline
+name: Terraform AWS EC2 Pipeline
 
 on:
   push:
@@ -6,21 +6,25 @@ on:
       - pre
 
 concurrency:
-  group: terraform-pre
+  group: terraform-aws-pre
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    name: Build and Deploy Terraform Docker
+  deploy:
+    name: Deploy AWS EC2 with Terraform
+
     runs-on: ubuntu-latest
 
     env:
       TF_IN_AUTOMATION: true
-      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      TF_VAR_db_root_password: ${{ secrets.DB_ROOT_PASSWORD }}
-      TF_VAR_image_name: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
+      TF_VAR_aws_region: us-east-1
+
+    defaults:
+      run:
+        working-directory: aws
 
     steps:
+
       - name: Checkout Code
         uses: actions/checkout@v6
 
@@ -29,121 +33,135 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: |
-            terraform.tfstate
-            terraform.tfstate.backup
-          key: terraform-state-pre-${{ github.run_id }}
+            aws/terraform.tfstate
+            aws/terraform.tfstate.backup
+          key: terraform-state-aws-pre-${{ github.run_id }}
           restore-keys: |
-            terraform-state-pre-
+            terraform-state-aws-pre-
+
 
       - name: Check Previous Terraform State
+        working-directory: .
         run: |
-          if [ -f terraform.tfstate ]; then
-            echo "Previous terraform.tfstate FOUND"
+          if [ -f aws/terraform.tfstate ]; then
+            echo "Previous AWS terraform.tfstate FOUND"
           else
-            echo "No previous terraform.tfstate found"
-            echo "First execution"
+            echo "No previous AWS terraform.tfstate found"
+            echo "This is the first AWS deployment"
           fi
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
 
-      - name: Build and Push PHP Apache Image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./app
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
-          platforms: linux/amd64
-          provenance: false
-          sbom: false
-
-      - name: Pull Application Image
+      - name: Verify AWS Connection
         run: |
-          docker pull ${{ secrets.DOCKER_USERNAME }}/terraform-php-apache:pre
+          echo "Checking AWS authentication..."
+          aws sts get-caller-identity
+
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.15.8
 
+
       - name: Terraform Init
         run: terraform init
+
 
       - name: Terraform Format
         run: terraform fmt -check
 
+
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform State Diff
+
+      - name: Show Previous Terraform Resources
         if: steps.terraform-state.outputs.cache-matched-key != ''
         run: |
           echo "======================================"
-          echo "CHANGES AGAINST PREVIOUS STATE"
+          echo "RESOURCES FROM PREVIOUS STATE"
           echo "======================================"
-          terraform plan -refresh=false -no-color
+
+          terraform state list
+
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan -out=tfplan
+
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: |
+          terraform apply -auto-approve tfplan
+
 
       - name: Save Terraform State
-        if: success()
+        if: ${{ always() && hashFiles('aws/terraform.tfstate') != '' }}
         uses: actions/cache/save@v6
         with:
           path: |
-            terraform.tfstate
-            terraform.tfstate.backup
-          key: terraform-state-pre-${{ github.run_id }}
+            aws/terraform.tfstate
+            aws/terraform.tfstate.backup
+          key: terraform-state-aws-pre-${{ github.run_id }}
 
-      - name: Verify Containers
+
+      - name: Terraform Outputs
         run: |
-          docker ps
+          echo "======================================"
+          echo "AWS INFRASTRUCTURE"
+          echo "======================================"
+
           terraform output
 
-      - name: Test PHP Apache
+          echo ""
+          echo "Website:"
+          terraform output -raw website_url
+
+
+      - name: Wait for EC2
         run: |
-          WEB_URL=$(terraform output -json services | jq -r '.web.url')
+          INSTANCE_ID=$(terraform output -raw instance_id)
+
+          echo "Waiting for EC2 instance: $INSTANCE_ID"
+
+          aws ec2 wait instance-status-ok \
+            --instance-ids "$INSTANCE_ID"
+
+          echo "EC2 instance is healthy"
+
+
+      - name: Test Website
+        run: |
+          WEB_URL=$(terraform output -raw website_url)
 
           echo "Testing: $WEB_URL"
 
-          for i in {1..10}; do
-            if curl --fail --silent "$WEB_URL"; then
-              echo "PHP Apache OK"
+          for i in {1..30}; do
+
+            if curl --fail --silent "$WEB_URL" > /dev/null; then
+              echo "======================================"
+              echo "WEBSITE IS UP"
+              echo "$WEB_URL"
+              echo "======================================"
               exit 0
             fi
 
-            echo "Waiting for PHP Apache..."
-            sleep 5
+            echo "Waiting for Apache... attempt $i/30"
+            sleep 10
+
           done
 
+          echo "Website did not respond"
           exit 1
 
-      - name: Test phpMyAdmin
-        run: |
-          PHPMYADMIN_URL=$(terraform output -json services | jq -r '.phpmyadmin.url')
-
-          echo "Testing: $PHPMYADMIN_URL"
-
-          for i in {1..10}; do
-            if curl --fail --silent "$PHPMYADMIN_URL" > /dev/null; then
-              echo "phpMyAdmin OK"
-              exit 0
-            fi
-
-            echo "Waiting for phpMyAdmin..."
-            sleep 5
-          done
-
-          exit 1
 
       - name: Notify Slack
         if: always()
@@ -154,5 +172,5 @@ jobs:
           payload: |
             {
               "channel": "C0BV7BFRWUU",
-              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ github.workflow }}*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Branch:* `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ github.workflow }}*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Branch:* `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver pipeline>"
             }
