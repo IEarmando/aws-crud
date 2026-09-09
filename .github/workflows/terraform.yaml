@@ -24,11 +24,20 @@ jobs:
         working-directory: aws
 
     steps:
+      # =========================================================
+      # CHECKOUT
+      # =========================================================
 
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Restore Terraform State
+
+      # =========================================================
+      # OLD STATE - GITHUB CACHE
+      # SOLO PARA ESTA MIGRACION
+      # =========================================================
+
+      - name: Restore Previous Terraform State
         id: terraform-state
         uses: actions/cache/restore@v6
         with:
@@ -39,17 +48,24 @@ jobs:
           restore-keys: |
             terraform-state-aws-pre-
 
-
       - name: Check Previous Terraform State
         working-directory: .
         run: |
           if [ -f aws/terraform.tfstate ]; then
-            echo "Previous AWS terraform.tfstate FOUND"
+            echo "======================================"
+            echo "Previous terraform.tfstate FOUND"
+            echo "State will be migrated to S3"
+            echo "======================================"
           else
-            echo "No previous AWS terraform.tfstate found"
-            echo "This is the first AWS deployment"
+            echo "ERROR: Previous terraform.tfstate was not found"
+            echo "Stopping migration to avoid creating a new state"
+            exit 1
           fi
 
+
+      # =========================================================
+      # AWS AUTHENTICATION
+      # =========================================================
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -58,12 +74,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-
       - name: Verify AWS Connection
         run: |
           echo "Checking AWS authentication..."
           aws sts get-caller-identity
 
+
+      # =========================================================
+      # TERRAFORM
+      # =========================================================
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -71,47 +90,67 @@ jobs:
           terraform_version: 1.15.8
 
 
-      - name: Terraform Init
-        run: terraform init
+      # =========================================================
+      # MIGRATE LOCAL/CACHED STATE -> S3
+      # =========================================================
+
+      - name: Terraform Init and Migrate State to S3
+        run: |
+          terraform init \
+            -migrate-state \
+            -force-copy \
+            -input=false
 
 
-      - name: Terraform Format
-        run: terraform fmt -check
+      # =========================================================
+      # VERIFY REMOTE STATE
+      # =========================================================
 
-
-      - name: Terraform Validate
-        run: terraform validate
-
-
-      - name: Show Previous Terraform Resources
-        if: steps.terraform-state.outputs.cache-matched-key != ''
+      - name: Verify Remote Terraform State
         run: |
           echo "======================================"
-          echo "RESOURCES FROM PREVIOUS STATE"
+          echo "RESOURCES IN REMOTE S3 STATE"
           echo "======================================"
 
           terraform state list
 
 
+      # =========================================================
+      # TERRAFORM CHECKS
+      # =========================================================
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+
+      # =========================================================
+      # PLAN WITH STATE LOCKING
+      # =========================================================
+
       - name: Terraform Plan
         run: |
-          terraform plan -out=tfplan
+          terraform plan \
+            -lock-timeout=5m \
+            -out=tfplan
 
+
+      # =========================================================
+      # APPLY WITH STATE LOCKING
+      # =========================================================
 
       - name: Terraform Apply
         run: |
-          terraform apply -auto-approve tfplan
+          terraform apply \
+            -lock-timeout=5m \
+            tfplan
 
 
-      - name: Save Terraform State
-        if: ${{ always() && hashFiles('aws/terraform.tfstate') != '' }}
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            aws/terraform.tfstate
-            aws/terraform.tfstate.backup
-          key: terraform-state-aws-pre-${{ github.run_id }}
-
+      # =========================================================
+      # OUTPUTS
+      # =========================================================
 
       - name: Terraform Outputs
         run: |
@@ -126,6 +165,10 @@ jobs:
           terraform output -raw website_url
 
 
+      # =========================================================
+      # WAIT FOR EC2
+      # =========================================================
+
       - name: Wait for EC2
         run: |
           INSTANCE_ID=$(terraform output -raw instance_id)
@@ -137,6 +180,10 @@ jobs:
 
           echo "EC2 instance is healthy"
 
+
+      # =========================================================
+      # TEST WEBSITE
+      # =========================================================
 
       - name: Test Website
         run: |
@@ -162,6 +209,10 @@ jobs:
           echo "Website did not respond"
           exit 1
 
+
+      # =========================================================
+      # SLACK
+      # =========================================================
 
       - name: Notify Slack
         if: always()
