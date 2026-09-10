@@ -143,5 +143,6 @@ resource "aws_instance" "web" {
     Name        = var.project_name
     Environment = "pre"
     ManagedBy   = "Terraform"
+    Project     = "Terraform AWS-Lab"
   }
 }
