@@ -86,44 +86,9 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy" "s3_app_release" {
-  name = "${var.project_name}-s3-app-release"
-  role = aws_iam_role.ec2_ssm.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::${var.state_bucket}/app-releases/*"
-      }
-    ]
-  })
-}
-
 resource "aws_iam_instance_profile" "ec2_ssm" {
   name = "${var.project_name}-ssm-profile"
   role = aws_iam_role.ec2_ssm.name
-}
-
-# ============================================================
-# PERMISO PARA QUE EL RUNNER DE GITHUB ACTIONS PUEDA SUBIR EL ZIP
-# ============================================================
-resource "aws_iam_user_policy" "github_actions_s3_upload" {
-  name = "${var.project_name}-github-s3-upload"
-  user = "terraform-github-lab"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["s3:PutObject"]
-        Resource = "arn:aws:s3:::${var.state_bucket}/app-releases/*"
-      }
-    ]
-  })
 }
 
 # EC2
