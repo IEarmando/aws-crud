@@ -122,7 +122,7 @@ jobs:
               'echo DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=8082 >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
-              'cd /opt/app && docker compose --env-file .env up -d --build'
+              'cd /opt/app && (docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1; echo EXIT_CODE=$? >> /tmp/compose.log; tail -n 60 /tmp/compose.log)'
             ]" \
             --query "Command.CommandId" \
             --output text)
