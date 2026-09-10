@@ -95,7 +95,50 @@ jobs:
 
           echo "EC2 instance is healthy"
 
-      - name: Test Website
+      - name: Package App Release
+        working-directory: .
+        run: |
+          zip -r app-release.zip app docker-compose.yml
+
+      - name: Upload App Release to S3
+        working-directory: .
+        run: |
+          aws s3 cp app-release.zip \
+            s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip
+
+      - name: Deploy CRUD via SSM
+        run: |
+          INSTANCE_ID=$(terraform output -raw instance_id)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands="[
+              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
+              'cd /opt/app && unzip -o /opt/app.zip',
+              'cat > /opt/app/.env <<EOF
+              DB_NAME=${{ secrets.DB_NAME }}
+              DB_USER=${{ secrets.DB_USER }}
+              DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+              DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
+              APP_PORT=8082
+              PHPMYADMIN_PORT=8081
+              EOF',
+              'cd /opt/app && docker compose --env-file .env up -d --build'
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Esperando resultado del comando $COMMAND_ID..."
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID"
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID"
+
+      - name: Test CRUD
         run: |
           WEB_URL=$(terraform output -raw website_url)
 
@@ -104,17 +147,17 @@ jobs:
           for i in {1..30}; do
             if curl --fail --silent "$WEB_URL" > /dev/null; then
               echo "======================================"
-              echo "WEBSITE IS UP"
+              echo "CRUD IS UP"
               echo "$WEB_URL"
               echo "======================================"
               exit 0
             fi
 
-            echo "Waiting for Apache... attempt $i/30"
+            echo "Waiting for containers... attempt $i/30"
             sleep 10
           done
 
-          echo "Website did not respond"
+          echo "CRUD did not respond"
           exit 1
 
       - name: Notify Slack
@@ -126,5 +169,5 @@ jobs:
           payload: |
             {
               "channel": "C0BV7BFRWUU",
-              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ github.workflow }}*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Branch:* `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver pipeline>"
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ github.workflow }}*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Origen:* `${{ github.event.pull_request.head.ref }}` -> *Destino:* `${{ github.event.pull_request.base.ref }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
             }
