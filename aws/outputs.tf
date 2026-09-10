@@ -9,6 +9,11 @@ output "public_ip" {
 }
 
 output "website_url" {
-  description = "URL publica del sitio"
-  value       = "http://${aws_instance.web.public_ip}"
+  description = "URL publica del CRUD"
+  value       = "http://${aws_instance.web.public_ip}:${var.app_port}"
+}
+
+output "phpmyadmin_url" {
+  description = "URL publica de phpMyAdmin"
+  value       = "http://${aws_instance.web.public_ip}:${var.phpmyadmin_port}"
 }
