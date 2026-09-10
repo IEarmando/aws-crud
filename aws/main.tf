@@ -12,7 +12,6 @@ provider "aws" {
 }
 
 # DEFAULT VPC
-
 data "aws_vpc" "default" {
   default = true
 }
@@ -25,16 +24,14 @@ data "aws_subnets" "default" {
 }
 
 # AMAZON LINUX 2023
-
 data "aws_ssm_parameter" "amazon_linux" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 # SECURITY GROUP
-
 resource "aws_security_group" "web" {
   name        = "${var.project_name}-sg"
-  description = "Allow HTTP traffic"
+  description = "Allow app + phpMyAdmin traffic"
   vpc_id      = data.aws_vpc.default.id
 
   tags = {
@@ -42,40 +39,42 @@ resource "aws_security_group" "web" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "http" {
+resource "aws_vpc_security_group_ingress_rule" "app" {
   security_group_id = aws_security_group.web.id
+  cidr_ipv4          = "0.0.0.0/0"
+  from_port          = var.app_port
+  to_port            = var.app_port
+  ip_protocol        = "tcp"
+}
 
-  cidr_ipv4   = "0.0.0.0/0" #cualquier ip de internet
-  from_port   = 80
-  to_port     = 80
-  ip_protocol = "tcp"
+resource "aws_vpc_security_group_ingress_rule" "phpmyadmin" {
+  security_group_id = aws_security_group.web.id
+  cidr_ipv4          = "0.0.0.0/0"
+  from_port          = var.phpmyadmin_port
+  to_port            = var.phpmyadmin_port
+  ip_protocol        = "tcp"
 }
 
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.web.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-  ip_protocol = "-1"
+  cidr_ipv4          = "0.0.0.0/0"
+  ip_protocol        = "-1"
 }
 
 # ============================================================
-# IAM ROLE FOR EC2 + SYSTEMS MANAGER
+# IAM ROLE FOR EC2 + SYSTEMS MANAGER + S3 (para bajar el release del CRUD)
 # ============================================================
-
 resource "aws_iam_role" "ec2_ssm" {
   name = "${var.project_name}-ssm-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-
     Statement = [
       {
         Effect = "Allow"
-
         Principal = {
           Service = "ec2.amazonaws.com"
         }
-
         Action = "sts:AssumeRole"
       }
     ]
@@ -87,13 +86,47 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy" "s3_app_release" {
+  name = "${var.project_name}-s3-app-release"
+  role = aws_iam_role.ec2_ssm.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "arn:aws:s3:::${var.state_bucket}/app-releases/*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "ec2_ssm" {
   name = "${var.project_name}-ssm-profile"
   role = aws_iam_role.ec2_ssm.name
 }
 
-# EC2
+# ============================================================
+# PERMISO PARA QUE EL RUNNER DE GITHUB ACTIONS PUEDA SUBIR EL ZIP
+# ============================================================
+resource "aws_iam_user_policy" "github_actions_s3_upload" {
+  name = "${var.project_name}-github-s3-upload"
+  user = "terraform-github-lab"
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "arn:aws:s3:::${var.state_bucket}/app-releases/*"
+      }
+    ]
+  })
+}
+
+# EC2
 resource "aws_instance" "web" {
   ami           = data.aws_ssm_parameter.amazon_linux.value
   instance_type = var.instance_type
@@ -105,38 +138,29 @@ resource "aws_instance" "web" {
   ]
 
   associate_public_ip_address = true
-
-  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
+  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
 
   depends_on = [
     aws_iam_role_policy_attachment.ssm_core
   ]
 
   user_data_replace_on_change = true
-
   user_data = <<-EOF
     #!/bin/bash
-
     dnf update -y
-    dnf install -y httpd
 
-    systemctl enable httpd
-    systemctl start httpd
+    dnf install -y docker
+    systemctl enable docker
+    systemctl start docker
+    usermod -aG docker ec2-user
 
-    cat <<'HTML' > /var/www/html/index.html
-    <!DOCTYPE html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Terraform AWS</title>
-      </head>
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-      <body>
-        <h1>Hola Mundo desde Terraform + AWS 🚀</h1>
-        <p>EC2 desplegada automaticamente desde GitHub Actions.</p>
-      </body>
-    </html>
-    HTML
+    mkdir -p /opt/app
+    chown ec2-user:ec2-user /opt/app
   EOF
 
   tags = {
