@@ -116,14 +116,12 @@ jobs:
             --parameters commands="[
               'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
               'cd /opt/app && unzip -o /opt/app.zip',
-              'cat > /opt/app/.env <<EOF
-              DB_NAME=${{ secrets.DB_NAME }}
-              DB_USER=${{ secrets.DB_USER }}
-              DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-              DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
-              APP_PORT=8082
-              PHPMYADMIN_PORT=8081
-              EOF',
+              'echo DB_NAME=${{ secrets.DB_NAME }} > /opt/app/.env',
+              'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
+              'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
+              'echo DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }} >> /opt/app/.env',
+              'echo APP_PORT=8082 >> /opt/app/.env',
+              'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
               'cd /opt/app && docker compose --env-file .env up -d --build'
             ]" \
             --query "Command.CommandId" \
