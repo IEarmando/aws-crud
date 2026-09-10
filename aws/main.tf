@@ -58,6 +58,40 @@ resource "aws_vpc_security_group_egress_rule" "all" {
   ip_protocol = "-1"
 }
 
+# ============================================================
+# IAM ROLE FOR EC2 + SYSTEMS MANAGER
+# ============================================================
+
+resource "aws_iam_role" "ec2_ssm" {
+  name = "${var.project_name}-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  role       = aws_iam_role.ec2_ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ec2_ssm" {
+  name = "${var.project_name}-ssm-profile"
+  role = aws_iam_role.ec2_ssm.name
+}
+
 # EC2
 
 resource "aws_instance" "web" {
@@ -71,6 +105,12 @@ resource "aws_instance" "web" {
   ]
 
   associate_public_ip_address = true
+
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ssm_core
+  ]
 
   user_data_replace_on_change = true
 
