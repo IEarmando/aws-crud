@@ -112,14 +112,24 @@ resource "aws_instance" "web" {
   user_data_replace_on_change = true
   user_data                   = <<-EOF
     #!/bin/bash
+    set -e
     dnf update -y
 
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-
+    dnf install -y docker
     systemctl enable docker
     systemctl start docker
     usermod -aG docker ec2-user
+
+    mkdir -p /usr/local/lib/docker/cli-plugins
+
+    curl -fSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+    BUILDX_VERSION=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
+    curl -fSL "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
+      -o /usr/local/lib/docker/cli-plugins/docker-buildx
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
     mkdir -p /opt/app
     chown ec2-user:ec2-user /opt/app
