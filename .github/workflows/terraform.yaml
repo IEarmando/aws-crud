@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - pre
+    types: [closed]  
 
 concurrency:
   group: terraform-aws-pre
@@ -12,7 +13,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy AWS EC2 with Terraform
-
+    if: github.event.pull_request.merged == true && github.head_ref == 'dev'
     runs-on: ubuntu-latest
 
     env:
