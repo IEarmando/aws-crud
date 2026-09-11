@@ -1,7 +1,7 @@
 name: Terraform AWS EC2 Pipeline
 
 on:
-  push:
+  pull_request:
     branches:
       - pre
     types: [closed]  
