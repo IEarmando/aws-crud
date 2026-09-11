@@ -110,7 +110,7 @@ resource "aws_instance" "web" {
   ]
 
   user_data_replace_on_change = true
-    user_data = <<-EOF
+  user_data                   = <<-EOF
     #!/bin/bash
     set -e
     dnf update -y
