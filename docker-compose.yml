@@ -22,6 +22,12 @@ services:
       app_network:
         aliases:
           - mysql-db
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s      
 
   php:
     build:
@@ -30,7 +36,8 @@ services:
     container_name: terraform-php-apache
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       DB_HOST: mysql-db
       DB_NAME: ${DB_NAME}
@@ -46,7 +53,8 @@ services:
     container_name: terraform-phpmyadmin
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     environment:
       PMA_HOST: mysql-db
       PMA_PORT: 3306
