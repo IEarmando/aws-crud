@@ -58,12 +58,18 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# ============================================================
 # AMAZON LINUX 2023
+# ============================================================
+
 data "aws_ssm_parameter" "amazon_linux" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
+# ============================================================
 # SECURITY GROUP
+# ============================================================
+
 resource "aws_security_group" "web" {
   name        = "${var.project_name}-${var.environment}-sg"
   description = "Allow app + phpMyAdmin traffic"
@@ -97,36 +103,77 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 }
 
 # ============================================================
-# IAM ROLE FOR EC2 + SYSTEMS MANAGER + S3 (para bajar el release del CRUD)
+# IAM ROLE FOR EC2 + SYSTEMS MANAGER + S3
 # ============================================================
+
 resource "aws_iam_role" "ec2_ssm" {
   name = "${var.project_name}-${var.environment}-ssm-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
+
     Statement = [
       {
         Effect = "Allow"
+
         Principal = {
           Service = "ec2.amazonaws.com"
         }
+
         Action = "sts:AssumeRole"
       }
     ]
   })
 }
 
+# ============================================================
+# SSM MANAGED INSTANCE CORE
+# ============================================================
+
 resource "aws_iam_role_policy_attachment" "ssm_core" {
   role       = aws_iam_role.ec2_ssm.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
+
+# ============================================================
+# S3 PERMISSION FOR EC2
+# Allows EC2 to download the CRUD release from S3
+# ============================================================
+
+resource "aws_iam_role_policy" "ec2_app_s3_read" {
+  name = "${var.project_name}-${var.environment}-s3-app-read"
+  role = aws_iam_role.ec2_ssm.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "s3:GetObject"
+        ]
+
+        Resource = "arn:aws:s3:::terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/*"
+      }
+    ]
+  })
+}
+
+# ============================================================
+# INSTANCE PROFILE
+# ============================================================
 
 resource "aws_iam_instance_profile" "ec2_ssm" {
   name = "${var.project_name}-${var.environment}-ssm-profile"
   role = aws_iam_role.ec2_ssm.name
 }
 
+# ============================================================
 # EC2
+# ============================================================
+
 resource "aws_instance" "web" {
   ami           = data.aws_ssm_parameter.amazon_linux.value
   instance_type = var.instance_type
@@ -138,35 +185,49 @@ resource "aws_instance" "web" {
   ]
 
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
+
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
 
   depends_on = [
-    aws_iam_role_policy_attachment.ssm_core
+    aws_iam_role_policy_attachment.ssm_core,
+    aws_iam_role_policy.ec2_app_s3_read
   ]
 
   user_data_replace_on_change = true
-  user_data                   = <<-EOF
+
+  user_data = <<-EOF
     #!/bin/bash
+
     set -e
+
     dnf update -y
 
     dnf install -y docker
+
     systemctl enable docker
     systemctl start docker
+
     usermod -aG docker ec2-user
 
+    # Docker Compose
     mkdir -p /usr/local/lib/docker/cli-plugins
 
     curl -fSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
       -o /usr/local/lib/docker/cli-plugins/docker-compose
+
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
+    # Docker Buildx
     BUILDX_VERSION=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
+
     curl -fSL "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
       -o /usr/local/lib/docker/cli-plugins/docker-buildx
+
     chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
+    # Application directory
     mkdir -p /opt/app
+
     chown ec2-user:ec2-user /opt/app
   EOF
 
