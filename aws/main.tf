@@ -11,16 +11,51 @@ provider "aws" {
   region = var.aws_region
 }
 
-# DEFAULT VPC
-data "aws_vpc" "default" {
-  default = true
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-vpc"
+  }
 }
 
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-subnet"
   }
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-igw"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-rt"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
 }
 
 # AMAZON LINUX 2023
@@ -30,12 +65,12 @@ data "aws_ssm_parameter" "amazon_linux" {
 
 # SECURITY GROUP
 resource "aws_security_group" "web" {
-  name        = "${var.project_name}-sg"
+  name        = "${var.project_name}-${var.environment}-sg"
   description = "Allow app + phpMyAdmin traffic"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-sg"
+    Name = "${var.project_name}-${var.environment}-sg"
   }
 }
 
@@ -65,7 +100,7 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 # IAM ROLE FOR EC2 + SYSTEMS MANAGER + S3 (para bajar el release del CRUD)
 # ============================================================
 resource "aws_iam_role" "ec2_ssm" {
-  name = "${var.project_name}-ssm-role"
+  name = "${var.project_name}-${var.environment}-ssm-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -87,7 +122,7 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 }
 
 resource "aws_iam_instance_profile" "ec2_ssm" {
-  name = "${var.project_name}-ssm-profile"
+  name = "${var.project_name}-${var.environment}-ssm-profile"
   role = aws_iam_role.ec2_ssm.name
 }
 
@@ -96,7 +131,7 @@ resource "aws_instance" "web" {
   ami           = data.aws_ssm_parameter.amazon_linux.value
   instance_type = var.instance_type
 
-  subnet_id = sort(data.aws_subnets.default.ids)[0]
+  subnet_id = aws_subnet.public.id
 
   vpc_security_group_ids = [
     aws_security_group.web.id
@@ -136,8 +171,8 @@ resource "aws_instance" "web" {
   EOF
 
   tags = {
-    Name        = var.project_name
-    Environment = "pre"
+    Name        = "${var.project_name}-${var.environment}-ec2"
+    Environment = var.environment
     ManagedBy   = "Terraform"
     Project     = "Terraform AWS-Lab"
   }
