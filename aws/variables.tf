@@ -33,3 +33,27 @@ variable "state_bucket" {
   type        = string
   default     = "terraform-state-ec2-lab-141553305029-us-east-1-an"
 }
+
+variable "vpc_cidr" {
+  description = "Rango de direcciones IP de la VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "subnet_cidr" {
+  description = "Rango de direcciones IP de la subred publica"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "availability_zone" {
+  description = "Zona de disponibilidad para la subred"
+  type        = string
+  default     = "us-east-1a"
+}
+
+variable "environment" {
+  description = "Ambiente del despliegue (dev, pre, prod)"
+  type        = string
+  default     = "dev"
+}
