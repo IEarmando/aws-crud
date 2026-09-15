@@ -118,20 +118,24 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --parameters commands="[
+              'set -e',
               'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
-              'cd /opt/app && unzip -o /opt/app.zip',
+              'cd /opt/app',
+              'unzip -o /opt/app.zip',
               'echo DB_NAME=${{ secrets.DB_NAME }} > /opt/app/.env',
               'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
               'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
               'echo DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=8082 >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
-              'cd /opt/app && (docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1; echo EXIT_CODE=$? >> /tmp/compose.log; tail -n 60 /tmp/compose.log)'
+              'docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1',
+              'cat /tmp/compose.log'
             ]" \
             --query "Command.CommandId" \
             --output text)
 
           echo "Esperando resultado del comando $COMMAND_ID..."
+
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" || true
@@ -139,6 +143,7 @@ jobs:
           echo "======================================"
           echo "RESULTADO DEL COMANDO"
           echo "======================================"
+
           aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID"
@@ -152,7 +157,7 @@ jobs:
           if [ "$STATUS" != "Success" ]; then
             echo "El comando falló con status: $STATUS"
             exit 1
-          fi      
+          fi
       
       - name: Test CRUD
         run: |
