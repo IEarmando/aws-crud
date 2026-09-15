@@ -125,7 +125,6 @@ jobs:
               'echo DB_NAME=${{ secrets.DB_NAME }} > /opt/app/.env',
               'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
               'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
-              'echo DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=8082 >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
               'docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1',
