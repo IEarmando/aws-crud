@@ -70,11 +70,11 @@ jobs:
             -lock-timeout=5m \
             -out=tfplan
 
-#      - name: Terraform Apply
- #       run: |
-  #        terraform apply \
-   #         -lock-timeout=5m \
-    #        tfplan
+      - name: Terraform Apply
+        run: |
+          terraform apply \
+            -lock-timeout=5m \
+            tfplan
 
       - name: Terraform Outputs
         run: |
