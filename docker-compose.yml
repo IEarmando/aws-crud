@@ -1,38 +1,7 @@
 networks:
   app_network:
     name: terraform-app-network
-
-volumes:
-  mysql_data:
-    name: terraform-mysql-data
-
 services:
-
-  # ==========================================
-  # MYSQL LOCAL - TEMPORAL / RESPALDO
-  # ==========================================
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      app_network:
-        aliases:
-          - mysql-db
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
   # ==========================================
   # PHP / APACHE
   # ==========================================
