@@ -1,6 +1,7 @@
 networks:
   app_network:
     name: terraform-app-network
+    
 services:
   # ==========================================
   # PHP / APACHE
