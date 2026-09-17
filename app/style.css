@@ -1,56 +1,199 @@
+/* Importamos una fuente moderna y minimalista */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --bg-color: #f8fafc;
+    --surface: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --success-bg: #dcfce7;
+    --success-text: #166534;
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    max-width: 850px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    max-width: 900px;
     margin: 40px auto;
     padding: 20px;
+    line-height: 1.6;
 }
 
 h1 {
-    margin-bottom: 10px;
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin-bottom: 0.5rem;
 }
 
-.conexion {
-    color: green;
+h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 1.5rem 0 1rem;
+    color: var(--text-main);
 }
 
-.mensaje {
-    color: green;
-    font-weight: bold;
-}
-
-.info {
-    background: #f4f4f4;
-    padding: 15px;
-    margin-bottom: 25px;
+/* Alertas de éxito mejoradas */
+.conexion, .mensaje {
+    background-color: var(--success-bg);
+    color: var(--success-text);
+    padding: 12px 16px;
     border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border: 1px solid #bbf7d0;
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+/* Tarjeta de información */
+.info {
+    background: var(--surface);
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.info p {
+    margin-bottom: 8px;
+    color: var(--text-muted);
+}
+
+.info p:last-child {
+    margin-bottom: 0;
+}
+
+.info strong {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: var(--border);
+    margin: 30px 0;
+}
+
+/* Formulario principal */
+form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 input[type="text"] {
-    padding: 10px;
-    width: 250px;
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 350px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-main);
+    background: var(--surface);
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+input[type="text"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* Anillo de enfoque moderno */
 }
 
 button {
-    padding: 10px 20px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--text-main);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-family: inherit;
 }
 
+button:hover {
+    background-color: #334155;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+/* Botón de eliminar con estilo "Destructive" */
 .eliminar {
-    color: #a00000;
+    background-color: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
 }
 
+.eliminar:hover {
+    background-color: var(--danger);
+    color: white;
+}
+
+/* Tabla con diseño limpio */
 table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
-    margin-top: 25px;
+    margin-top: 15px;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
 }
 
 th, td {
-    border: 1px solid #ccc;
-    padding: 10px;
+    padding: 16px;
     text-align: left;
+    border-bottom: 1px solid var(--border);
 }
 
 th {
-    background-color: #eeeeee;
+    background-color: #f8fafc;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+    background-color: #f1f5f9; /* Sombreado sutil al pasar el mouse en la fila */
+}
+
+/* Evitar que el flex del form rompa el botón en la tabla */
+td form {
+    margin: 0;
+    display: inline-block;
 }
