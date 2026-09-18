@@ -364,8 +364,8 @@ resource "aws_instance" "web" {
     aws_iam_role_policy.ec2_app_s3_read
   ]
 
-  user_data_replace_on_change = false
-  user_data                   = <<-EOF
+  user_data_replace_on_change = true
+  user_data                     = <<-EOF
 
     #!/bin/bash
     set -e
@@ -396,7 +396,7 @@ resource "aws_instance" "web" {
 
     mkdir -p /opt/app
     chown ec2-user:ec2-user /opt/app
-    
+
   EOF
 
   tags = {
