@@ -364,7 +364,7 @@ resource "aws_instance" "web" {
     aws_iam_role_policy.ec2_app_s3_read
   ]
 
-  user_data_replace_on_change = true
+  user_data_replace_on_change = false
   user_data                   = <<-EOF
 
     #!/bin/bash
@@ -385,10 +385,10 @@ resource "aws_instance" "web" {
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
     # Docker Buildx
-
-    BUILDX_VERSION=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
+    
+    BUILDX_VERSION="v0.13.1"
     curl -fSL "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
-      -o /usr/local/lib/docker/cli-plugins/docker-buildx
+    -o /usr/local/lib/docker/cli-plugins/docker-buildx
 
     chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
@@ -396,9 +396,7 @@ resource "aws_instance" "web" {
 
     mkdir -p /opt/app
     chown ec2-user:ec2-user /opt/app
-
-    # Forzar recreacion 1
-
+    
   EOF
 
   tags = {
