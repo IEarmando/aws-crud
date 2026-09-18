@@ -405,7 +405,7 @@ resource "aws_instance" "web" {
   # ==========================================
   # DOCKER BUILDX
   # ==========================================
-  BUILDX_VERSION="v0.13.1"
+  BUILDX_VERSION="v0.17.0"
 
   curl -fSL \
     "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
