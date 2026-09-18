@@ -84,12 +84,6 @@ jobs:
 
           terraform output
 
-          echo ""
-          echo "======================================"
-          echo "Website:"
-          terraform output -raw website_url
-          echo "======================================"
-
       - name: Wait for EC2
         run: |
           INSTANCE_ID=$(terraform output -raw instance_id)
