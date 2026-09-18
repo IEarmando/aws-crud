@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.0"
+      version = "~> 6.65.0"
     }
   }
 }
@@ -129,14 +129,6 @@ resource "aws_route_table_association" "private_a" {
 resource "aws_route_table_association" "private_b" {
   subnet_id      = aws_subnet.private_b.id
   route_table_id = aws_route_table.private.id
-}
-
-# ============================================================
-# AMAZON LINUX 2023
-# ============================================================
-
-data "aws_ssm_parameter" "amazon_linux" {
-  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
 # ============================================================
@@ -348,7 +340,7 @@ resource "aws_db_instance" "mysql" {
 # ============================================================
 
 resource "aws_instance" "web" {
-  ami           = data.aws_ssm_parameter.amazon_linux.value
+  ami           = "ami-0bd3fbcdc633a1b1a"
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
 
@@ -364,7 +356,7 @@ resource "aws_instance" "web" {
     aws_iam_role_policy.ec2_app_s3_read
   ]
 
-  user_data_replace_on_change = true
+  user_data_replace_on_change = false
 
   user_data = <<-EOF
   #!/bin/bash
