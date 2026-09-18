@@ -397,6 +397,8 @@ resource "aws_instance" "web" {
     mkdir -p /opt/app
     chown ec2-user:ec2-user /opt/app
 
+    # Forzar recreacion 1
+
   EOF
 
   tags = {
