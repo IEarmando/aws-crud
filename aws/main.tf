@@ -365,36 +365,67 @@ resource "aws_instance" "web" {
   ]
 
   user_data_replace_on_change = true
-  user_data                   = <<-EOF
 
-    #!/bin/bash
-    set -e
+  user_data = <<-EOF
+  #!/bin/bash
+  set -e
 
-    mkdir -p /opt/app
-    chown ec2-user:ec2-user /opt/app
+  # ==========================================
+  # APPLICATION DIRECTORY
+  # ==========================================
+  mkdir -p /opt/app
+  chown ec2-user:ec2-user /opt/app
 
-    dnf update -y
-    dnf install -y docker
+  # ==========================================
+  # UPDATE SYSTEM
+  # ==========================================
+  dnf update -y
 
-    systemctl enable docker
-    systemctl start docker
+  # ==========================================
+  # DOCKER
+  # ==========================================
+  dnf install -y docker
 
-    usermod -aG docker ec2-user
+  systemctl enable docker
+  systemctl start docker
 
-    mkdir -p /usr/local/lib/docker/cli-plugins
+  usermod -aG docker ec2-user
 
-    curl -fSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-      -o /usr/local/lib/docker/cli-plugins/docker-compose
+  # ==========================================
+  # DOCKER COMPOSE
+  # ==========================================
+  mkdir -p /usr/local/lib/docker/cli-plugins
 
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+  curl -fSL \
+    https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
 
-    BUILDX_VERSION=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
-    curl -fSL "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+  # ==========================================
+  # DOCKER BUILDX
+  # ==========================================
+  BUILDX_VERSION="v0.13.1"
+
+  curl -fSL \
+    "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
     -o /usr/local/lib/docker/cli-plugins/docker-buildx
 
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
-  EOF
+  # ==========================================
+  # VERIFY INSTALLATION
+  # ==========================================
+  docker --version
+  docker compose version
+  docker buildx version
+
+  # ==========================================
+  # BOOTSTRAP COMPLETE
+  # ==========================================
+  touch /opt/app/.instance-ready
+
+EOF
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-ec2"
