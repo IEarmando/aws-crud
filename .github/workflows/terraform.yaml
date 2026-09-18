@@ -119,23 +119,62 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters commands="[
               'set -e',
+
               'echo \"Esperando cloud-init...\"',
-              'cloud-init status --wait',
-              'echo \"cloud-init terminado\"',
+
+              'if ! cloud-init status --wait; then',
+              '  echo \"======================================\"',
+              '  echo \"CLOUD-INIT FALLÓ\"',
+              '  echo \"======================================\"',
+              '  echo \"===== CLOUD-INIT STATUS =====\"',
+              '  cloud-init status --long || true',
+              '  echo \"===== CLOUD-FINAL LOG =====\"',
+              '  journalctl -u cloud-final.service --no-pager -n 200 || true',
+              '  echo \"===== CLOUD-INIT LOG =====\"',
+              '  journalctl -u cloud-init.service --no-pager -n 200 || true',
+              '  echo \"===== CLOUD-INIT OUTPUT =====\"',
+              '  if [ -f /var/log/cloud-init-output.log ]; then tail -200 /var/log/cloud-init-output.log; fi',
+              '  echo \"===== DOCKER STATUS =====\"',
+              '  systemctl status docker --no-pager || true',
+              '  exit 1',
+              'fi',
+
+              'echo \"cloud-init terminó correctamente\"',
+
               'echo \"Verificando Docker...\"',
               'systemctl is-active --quiet docker',
-              'echo \"Docker está activo\"',
+              'docker --version',
+              'docker compose version',
+
+              'echo \"Verificando directorio /opt/app...\"',
               'mkdir -p /opt/app',
+
+              'echo \"Descargando release desde S3...\"',
               'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
+
+              'echo \"Descomprimiendo aplicación...\"',
               'cd /opt/app',
               'unzip -o /opt/app.zip',
+
+              'echo \"Creando .env...\"',
               'echo DB_NAME=${{ secrets.DB_NAME }} > /opt/app/.env',
               'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
               'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=8082 >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
+
+              'echo \"Levantando Docker Compose...\"',
               'docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1',
-              'cat /tmp/compose.log'
+
+              'echo \"======================================\"',
+              'echo \"DOCKER COMPOSE OUTPUT\"',
+              'echo \"======================================\"',
+              'cat /tmp/compose.log',
+
+              'echo \"======================================\"',
+              'echo \"CONTENEDORES\"',
+              'echo \"======================================\"',
+              'docker compose --env-file .env ps'
             ]" \
             --query "Command.CommandId" \
             --output text)
