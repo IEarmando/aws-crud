@@ -115,7 +115,6 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters commands="[
               'set -e',
-              'cloud-init status --wait',
               'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
               'cd /opt/app',
               'unzip -o /opt/app.zip',
