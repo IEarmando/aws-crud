@@ -31,15 +31,3 @@ output "rds_port" {
   description = "Puerto de RDS MySQL"
   value       = aws_db_instance.mysql.port
 }
-
-output "rds_database" {
-  description = "Nombre de la base de datos RDS"
-  value       = aws_db_instance.mysql.db_name
-}
-
-output "rds_username" {
-  description = "Usuario de RDS MySQL"
-  value       = aws_db_instance.mysql.username
-  sensitive   = true
-
-}

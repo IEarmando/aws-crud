@@ -46,7 +46,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.15.8
+          terraform_version: 1.16.3
 
       - name: Terraform Init
         run: terraform init -input=false
@@ -85,8 +85,10 @@ jobs:
           terraform output
 
           echo ""
+          echo "======================================"
           echo "Website:"
           terraform output -raw website_url
+          echo "======================================"
 
       - name: Wait for EC2
         run: |
