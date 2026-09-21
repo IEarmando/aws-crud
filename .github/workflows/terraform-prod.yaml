@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy AWS EC2 with Terraform
+    name: Deploy AWS EC2 with Terraform - PROD
     if: github.event.pull_request.merged == true && github.head_ref == 'pre'
     runs-on: ubuntu-latest
 
@@ -62,7 +62,7 @@ jobs:
           echo "======================================"
           echo "RESOURCES FROM REMOTE S3 STATE"
           echo "======================================"
-          terraform state list
+          terraform state list || echo "No state file found yet (first deployment)."
 
       - name: Terraform Plan
         run: |
