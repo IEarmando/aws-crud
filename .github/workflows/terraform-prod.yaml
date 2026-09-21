@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy AWS EC2 with Terraform
+    name: Deploy AWS EC2 with Terraform - PROD
     if: github.event.pull_request.merged == true && github.head_ref == 'pre'
     runs-on: ubuntu-latest
 
