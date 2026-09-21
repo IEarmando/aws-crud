@@ -158,7 +158,7 @@ jobs:
               'unzip -o /opt/app.zip',
 
               'echo \"Creando .env...\"',
-              'echo DB_HOST='${RDS_ENDPOINT}' > /opt/app/.env',
+              'echo DB_HOST=${RDS_ENDPOINT} > /opt/app/.env',
               'echo DB_NAME=${{ secrets.DB_NAME }} >> /opt/app/.env',
               'echo DB_USER=${{ secrets.PROD_DB_USER }} >> /opt/app/.env',
               'echo DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }} >> /opt/app/.env',
