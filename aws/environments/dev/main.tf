@@ -266,7 +266,7 @@ resource "aws_iam_role_policy" "ec2_app_s3_read" {
         Action = [
           "s3:GetObject"
         ]
-        Resource = "arn:aws:s3:::terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/*"
+        Resource = "arn:aws:s3:::terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/dev/*"
       }
     ]
   })
