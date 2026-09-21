@@ -11,7 +11,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "Tipo de instancia EC2"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 }
 
 # ============================================================
@@ -121,7 +121,7 @@ variable "private_availability_zone_b" {
 variable "db_instance_class" {
   description = "Tipo de instancia RDS MySQL"
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t3.medium"
 }
 
 variable "db_allocated_storage" {
@@ -139,7 +139,7 @@ variable "db_name" {
 variable "db_username" {
   description = "Usuario administrador de RDS MySQL"
   type        = string
-  default     = "terraform_user"
+  default     = "terraform_admin"
 }
 
 variable "db_password" {

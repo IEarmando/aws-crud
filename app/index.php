@@ -43,6 +43,13 @@ $resultado = $conexion->query("SELECT id, nombre, fecha FROM usuarios ORDER BY i
 
     <h1>Terraform Docker Lab</h1>
 
+    <?php
+      // Lee la variable del archivo .env que inyectó el pipeline
+      $ambiente = getenv('APP_ENV') ?: 'Local';
+      $color = ($ambiente === 'PROD') ? 'red' : 'green';
+      echo "<h2 style='color: $color; text-align: center;'>AMBIENTE: $ambiente</h2>";
+    ?>
+
     <h2 class="conexion">Conexión exitosa a la base de datos</h2>
 
     <div class="info">

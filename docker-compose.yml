@@ -14,10 +14,11 @@ services:
     restart: unless-stopped
 
     environment:
-      DB_HOST: terraform-hello-aws-dev-mysql.cw32c80i4gi5.us-east-1.rds.amazonaws.com
+      DB_HOST: ${DB_HOST}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      APP_ENV: ${APP_ENV}
 
     ports:
       - "${APP_PORT}:80"
@@ -34,7 +35,7 @@ services:
     restart: unless-stopped
 
     environment:
-      PMA_HOST: terraform-hello-aws-dev-mysql.cw32c80i4gi5.us-east-1.rds.amazonaws.com
+      PMA_HOST: ${DB_HOST}
       PMA_PORT: 3306
 
     ports:

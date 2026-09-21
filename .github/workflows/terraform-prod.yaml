@@ -20,8 +20,8 @@ jobs:
       TF_IN_AUTOMATION: true
       TF_VAR_aws_region: us-east-1
       TF_VAR_db_name: ${{ secrets.DB_NAME }}
-      TF_VAR_db_username: ${{ secrets.DB_USER }}
-      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_db_username: ${{ secrets.PROD_DB_USER }}
+      TF_VAR_db_password: ${{ secrets.PROD_DB_PASSWORD }}
 
     defaults:
       run:
@@ -109,6 +109,7 @@ jobs:
       - name: Deploy CRUD via SSM
         run: |
           INSTANCE_ID=$(terraform output -raw instance_id)
+          RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
 
           echo "======================================"
           echo "ESPERANDO A QUE CLOUD-INIT TERMINE"
@@ -157,11 +158,13 @@ jobs:
               'unzip -o /opt/app.zip',
 
               'echo \"Creando .env...\"',
-              'echo DB_NAME=${{ secrets.DB_NAME }} > /opt/app/.env',
-              'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
-              'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
-              'echo APP_PORT=8082 >> /opt/app/.env',
-              'echo PHPMYADMIN_PORT=8081 >> /opt/app/.env',
+              'echo DB_HOST='${RDS_ENDPOINT}' > /opt/app/.env',
+              'echo DB_NAME=${{ secrets.DB_NAME }} >> /opt/app/.env',
+              'echo DB_USER=${{ secrets.PROD_DB_USER }} >> /opt/app/.env',
+              'echo DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }} >> /opt/app/.env',
+              'echo APP_PORT=8084 >> /opt/app/.env',
+              'echo PHPMYADMIN_PORT=8085 >> /opt/app/.env',
+              'echo APP_ENV=PROD >> /opt/app/.env',
 
               'echo \"Levantando Docker Compose...\"',
               'docker compose --env-file .env up -d --build > /tmp/compose.log 2>&1',
