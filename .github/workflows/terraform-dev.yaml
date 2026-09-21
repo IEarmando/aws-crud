@@ -7,7 +7,7 @@ on:
     types: [closed]  
 
 concurrency:
-  group: terraform-aws-pre
+  group: terraform-aws-dev
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: aws
+        working-directory: aws/environments/dev
 
     steps:
       - name: Checkout Code
@@ -104,7 +104,7 @@ jobs:
         working-directory: .
         run: |
           aws s3 cp app-release.zip \
-            s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip
+            s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/dev/app-release.zip
 
       - name: Deploy CRUD via SSM
         run: |
@@ -150,7 +150,7 @@ jobs:
               'mkdir -p /opt/app',
 
               'echo \"Descargando release desde S3...\"',
-              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/pre/app-release.zip /opt/app.zip',
+              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/dev/app-release.zip /opt/app.zip',
 
               'echo \"Descomprimiendo aplicación...\"',
               'cd /opt/app',
