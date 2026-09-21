@@ -1,0 +1,45 @@
+networks:
+  app_network:
+    name: terraform-app-network
+    
+services:
+  # ==========================================
+  # PHP / APACHE
+  # ==========================================
+  php:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: terraform-php-apache
+    restart: unless-stopped
+
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_ENV: ${APP_ENV}
+
+    ports:
+      - "${APP_PORT}:80"
+
+    networks:
+      - app_network
+
+  # ==========================================
+  # PHPMYADMIN
+  # ==========================================
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: terraform-phpmyadmin
+    restart: unless-stopped
+
+    environment:
+      PMA_HOST: ${DB_HOST}
+      PMA_PORT: 3306
+
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
+
+    networks:
+      - app_network

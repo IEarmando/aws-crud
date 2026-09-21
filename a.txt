@@ -1,0 +1,34 @@
+☁️ Infraestructura AWS — Ambiente DEV
+
+Recurso                                           ¿Para qué sirve?
+
+VPC                                               Red privada donde se aloja toda nuestra infraestructura de AWS.
+
+Subnet pública                                    Segmento de red donde se coloca la EC2 para que pueda tener acceso a Internet mediante el Internet Gateway.
+
+Subnets privadas (2)                              Segmentos de red donde se aloja RDS. Están en diferentes zonas de disponibilidad para cumplir con los requisitos
+                                                    del DB Subnet Group y permitir flexibilidad de ubicación.
+
+Internet Gateway (IGW)                            Permite la comunicación entre la VPC y el Internet. Se utiliza principalmente para la subnet pública de EC2.
+
+Route Tables                                      Definen hacia dónde se dirige el tráfico de red. 
+                                                    Una dirige el tráfico de la subnet pública al IGW y otra administra las rutas de las subnets privadas.
+
+Security Groups                                   Funcionan como firewall. Controlan qué tráfico puede entrar y salir de EC2 y RDS.
+
+EC2                                               Servidor virtual donde ejecutamos Docker, Apache, PHP y phpMyAdmin.
+
+RDS MySQL                                         Base de datos administrada por AWS donde se almacenan los datos de nuestra aplicación.
+
+DB Subnet Group                                   Agrupa las dos subnets privadas donde AWS puede desplegar la instancia de RDS.
+
+S3                                                Almacena el estado remoto de Terraform y los paquetes de la aplicación que se envían a EC2.
+
+IAM                                               Administra los permisos de acceso a AWS. GitHub Actions lo utiliza para ejecutar operaciones sobre la infraestructura.
+
+SSM                                               Permite ejecutar comandos remotamente en la EC2 desde GitHub Actions sin conectarnos manualmente por SSH.
+
+Terraform                                         Define y administra la infraestructura mediante código (IaC).
+
+GitHub Actions                                    Automatiza el proceso de validación, creación de infraestructura y despliegue de la aplicación.
+
