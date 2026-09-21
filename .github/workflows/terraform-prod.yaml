@@ -62,7 +62,7 @@ jobs:
           echo "======================================"
           echo "RESOURCES FROM REMOTE S3 STATE"
           echo "======================================"
-          terraform state list
+          terraform state list || echo "No state file found yet (first deployment)."
 
       - name: Terraform Plan
         run: |
