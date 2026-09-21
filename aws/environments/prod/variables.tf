@@ -11,7 +11,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "Tipo de instancia EC2"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 # ============================================================
@@ -121,7 +121,7 @@ variable "private_availability_zone_b" {
 variable "db_instance_class" {
   description = "Tipo de instancia RDS MySQL"
   type        = string
-  default     = "db.t3.medium"
+  default     = "db.t3.micro"
 }
 
 variable "db_allocated_storage" {
