@@ -21,7 +21,7 @@ variable "instance_type" {
 variable "project_name" {
   description = "Nombre del proyecto"
   type        = string
-  default     = "terraform-hello-aws"
+  default     = "terraform-api-aws"
 }
 
 variable "environment" {
