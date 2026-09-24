@@ -25,7 +25,7 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Ambiente del despliegue (prodtest)"
+  description = "Ambiente del despliegue (prod)"
   type        = string
   default     = "prod"
 }
