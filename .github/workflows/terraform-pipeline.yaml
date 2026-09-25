@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - dev
-      - pre
+      - main
 
   # El apply es el único que se controla de forma manual con el botón
   workflow_dispatch:
