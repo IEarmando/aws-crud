@@ -1,19 +1,21 @@
 name: Terraform Master Pipeline
 
 on:
+  # El plan corre SIEMPRE de forma automática con cada push
   push:
     branches:
       - dev
+      - pre
 
+  # El apply es el único que se controla de forma manual con el botón
   workflow_dispatch:
     inputs:
       action:
-        description: 'Selecciona la acción de Terraform'
+        description: 'Selecciona la acción'
         required: true
-        default: 'plan'
+        default: 'apply'
         type: choice
         options:
-          - plan
           - apply
       environment:
         description: 'Selecciona el ambiente'
@@ -25,12 +27,15 @@ on:
           - prod
 
 concurrency:
-  group: terraform-${{ inputs.environment }}
+  group: terraform-${{ github.ref_name || inputs.environment }}
   cancel-in-progress: false
 
 jobs:
-  terraform-execution:
-    name: Terraform Execution
+  # ==========================================
+  # JOB 1: PLAN (Automático 100% con el push)
+  # ==========================================
+  terraform-plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
 
     env:
@@ -39,12 +44,10 @@ jobs:
       TF_VAR_db_name: ${{ secrets.DB_NAME }}
       TF_VAR_db_username: ${{ secrets.DB_USER }}
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-      # Si viene por push a dev usa dev, si viene por push a pre/main usa prod, o usa el input manual
-      TARGET_ENV: ${{ github.event_name == 'push' && (github.ref_name == 'dev' && 'dev' || 'prod') || inputs.environment }}
+      TARGET_ENV: ${{ github.ref_name == 'dev' && 'dev' || 'prod' }}
 
     defaults:
       run:
-        # Apuntamos dinámicamente a la carpeta correcta según el ambiente detectado
         working-directory: aws/environments/${{ env.TARGET_ENV }}
 
     steps:
@@ -66,62 +69,101 @@ jobs:
       - name: Terraform Init
         run: terraform init -upgrade
 
-      # ==========================================
-      # PASO 1: PLAN
-      # ==========================================
       - name: Terraform Plan
         run: |
           terraform plan \
             -lock-timeout=5m \
             -out=tfplan
 
-      # ==========================================
-      # PASO 2: APPLY (Solo si elegiste 'apply')
-      # ==========================================
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ env.TARGET_ENV }}
+          path: aws/environments/${{ env.TARGET_ENV }}/tfplan
+
+      - name: Upload App Source
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-source-${{ env.TARGET_ENV }}
+          path: |
+            app/
+            docker-compose.yml
+
+  # ==========================================
+  # JOB 2: APPLY (Solo corre manual con el botón)
+  # ==========================================
+  terraform-apply:
+    name: Terraform Apply & Deploy
+    needs: terraform-plan
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'apply' }}
+    runs-on: ubuntu-latest
+
+    env:
+      TF_IN_AUTOMATION: true
+      TF_VAR_aws_region: us-east-1
+      TF_VAR_db_name: ${{ secrets.DB_NAME }}
+      TF_VAR_db_username: ${{ secrets.DB_USER }}
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TARGET_ENV: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        working-directory: aws/environments/${{ env.TARGET_ENV }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ env.TARGET_ENV }}
+          path: aws/environments/${{ env.TARGET_ENV }}
+
       - name: Terraform Apply
-        if: ${{ inputs.action == 'apply' }}
         run: |
           terraform apply \
             -lock-timeout=5m \
             tfplan
 
       - name: Terraform Outputs
-        if: ${{ inputs.action == 'apply' }}
         run: terraform output
 
-      # ==========================================
-      # PASO 3: DESPLIEGUE DE LA APP (Solo en Apply)
-      # ==========================================
-      - name: Wait for EC2
-        if: ${{ inputs.action == 'apply' }}
-        run: |
-          INSTANCE_ID=$(terraform output -raw instance_id)
-          echo "Waiting for EC2 instance: $INSTANCE_ID"
-          aws ec2 wait instance-status-ok --instance-ids "$INSTANCE_ID"
+      - name: Download App Source
+        uses: actions/download-artifact@v4
+        with:
+          name: app-source-${{ env.TARGET_ENV }}
+          path: .
 
       - name: Package App Release
-        if: ${{ inputs.action == 'apply' }}
-        working-directory: .
-        run: |
-          zip -r app-release.zip app docker-compose.yml
+        run: zip -r app-release.zip app docker-compose.yml
 
       - name: Upload App Release to S3
-        if: ${{ inputs.action == 'apply' }}
-        working-directory: .
         run: |
-          aws s3 cp app-release.zip \
-            s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ inputs.environment }}/app-release.zip
+          aws s3 cp app-release.zip s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip
 
       - name: Deploy CRUD via SSM
-        if: ${{ inputs.action == 'apply' }}
         run: |
           INSTANCE_ID=$(terraform output -raw instance_id)
           RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
           
-          APP_PORT=$([ "${{ inputs.environment }}" = "prod" ] && echo "8084" || echo "8082")
-          PMA_PORT=$([ "${{ inputs.environment }}" = "prod" ] && echo "8085" || echo "8081")
-          DB_USR=$([ "${{ inputs.environment }}" = "prod" ] && echo "${{ secrets.PROD_DB_USER }}" || echo "${{ secrets.DB_USER }}")
-          DB_PASS=$([ "${{ inputs.environment }}" = "prod" ] && echo "${{ secrets.PROD_DB_PASSWORD }}" || echo "${{ secrets.DB_PASSWORD }}")
+          APP_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8084" || echo "8082")
+          PMA_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8085" || echo "8081")
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -130,16 +172,16 @@ jobs:
               'set -e',
               'if ! cloud-init status --wait; then exit 1; fi',
               'mkdir -p /opt/app',
-              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ inputs.environment }}/app-release.zip /opt/app.zip',
+              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip /opt/app.zip',
               'cd /opt/app',
               'unzip -o /opt/app.zip',
               'echo DB_HOST=${RDS_ENDPOINT} > /opt/app/.env',
               'echo DB_NAME=${{ secrets.DB_NAME }} >> /opt/app/.env',
-              'echo DB_USER=${DB_USR} >> /opt/app/.env',
-              'echo DB_PASSWORD=${DB_PASS} >> /opt/app/.env',
+              'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
+              'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=${APP_PORT} >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=${PMA_PORT} >> /opt/app/.env',
-              'echo APP_ENV=$(echo ${{ inputs.environment }} | tr "[:lower:]" "[:upper:]") >> /opt/app/.env',
+              'echo APP_ENV=$(echo ${{ env.TARGET_ENV }} | tr "[:lower:]" "[:upper:]") >> /opt/app/.env',
               'docker compose --env-file .env up -d --build'
             ]" \
             --query "Command.CommandId" \
@@ -156,5 +198,5 @@ jobs:
           payload: |
             {
               "channel": "C0BV7BFRWUU",
-              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Workflow Master (${{ inputs.action }} - ${{ inputs.environment }})*\n*Estado:* ${{ job.status }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs>"
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Workflow Master (Apply - ${{ env.TARGET_ENV }})*\n*Estado:* ${{ job.status }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs>"
             }
