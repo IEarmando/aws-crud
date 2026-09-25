@@ -36,6 +36,9 @@ jobs:
     env:
       TF_IN_AUTOMATION: true
       TF_VAR_aws_region: us-east-1
+      TF_VAR_db_name: ${{ secrets.DB_NAME }}
+      TF_VAR_db_username: ${{ secrets.DB_USER }}
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       # Si viene por push a dev usa dev, si viene por push a pre/main usa prod, o usa el input manual
       TARGET_ENV: ${{ github.event_name == 'push' && (github.ref_name == 'dev' && 'dev' || 'prod') || inputs.environment }}
 
