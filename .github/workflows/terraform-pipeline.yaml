@@ -106,10 +106,6 @@ jobs:
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TARGET_ENV: ${{ inputs.environment }}
 
-    defaults:
-      run:
-        working-directory: aws/environments/${{ env.TARGET_ENV }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -127,7 +123,7 @@ jobs:
           terraform_version: 1.16.3
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform -chdir=aws/environments/${{ env.TARGET_ENV }} init
 
       - name: Download Terraform Plan
         uses: actions/download-artifact@v7
@@ -137,12 +133,12 @@ jobs:
 
       - name: Terraform Apply
         run: |
-          terraform apply \
+          terraform -chdir=aws/environments/${{ env.TARGET_ENV }} apply \
             -lock-timeout=5m \
             tfplan
 
       - name: Terraform Outputs
-        run: terraform output
+        run: terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output
 
       - name: Download App Source
         uses: actions/download-artifact@v7
@@ -151,19 +147,16 @@ jobs:
           path: .
 
       - name: Package App Release
-        run: |
-          cd ../..
-          zip -r app-release.zip app/ docker-compose.yml
+        run: zip -r app-release.zip app/ docker-compose.yml
 
       - name: Upload App Release to S3
-        working-directory: .
         run: |
           aws s3 cp app-release.zip s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip
 
       - name: Deploy CRUD via SSM
         run: |
-          INSTANCE_ID=$(terraform output -raw instance_id)
-          RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
+          INSTANCE_ID=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw instance_id)
+          RDS_ENDPOINT=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw rds_endpoint)
           
           APP_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8084" || echo "8082")
           PMA_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8085" || echo "8081")
