@@ -129,11 +129,11 @@ jobs:
               'unzip -o /opt/app.zip',
               'echo DB_HOST=${RDS_ENDPOINT} > /opt/app/.env',
               'echo DB_NAME=${{ secrets.DB_NAME }} >> /opt/app/.env',
-              'echo DB_USER='${DB_USR}' >> /opt/app/.env',
-              'echo DB_PASSWORD='${DB_PASS}' >> /opt/app/.env',
-              'echo APP_PORT='${APP_PORT}' >> /opt/app/.env',
-              'echo PHPMYADMIN_PORT='${PMA_PORT}' >> /opt/app/.env',
-              'echo APP_ENV=$(echo ${{ inputs.environment }} | tr \"[:lower:]\" \"[:upper:]\") >> /opt/app/.env',
+              'echo DB_USER=${DB_USR} >> /opt/app/.env',
+              'echo DB_PASSWORD=${DB_PASS} >> /opt/app/.env',
+              'echo APP_PORT=${APP_PORT} >> /opt/app/.env',
+              'echo PHPMYADMIN_PORT=${PMA_PORT} >> /opt/app/.env',
+              'echo APP_ENV=$(echo ${{ inputs.environment }} | tr "[:lower:]" "[:upper:]") >> /opt/app/.env',
               'docker compose --env-file .env up -d --build'
             ]" \
             --query "Command.CommandId" \
