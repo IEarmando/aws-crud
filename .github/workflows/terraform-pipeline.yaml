@@ -152,8 +152,7 @@ jobs:
 
       - name: Package App Release
         run: |
-          echo "Contenido del directorio actual:"
-          ls -la
+          cd ../..
           zip -r app-release.zip app/ docker-compose.yml
 
       - name: Upload App Release to S3
