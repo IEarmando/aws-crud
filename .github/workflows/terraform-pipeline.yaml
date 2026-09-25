@@ -76,13 +76,13 @@ jobs:
             -out=tfplan
 
       - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-${{ env.TARGET_ENV }}
           path: aws/environments/${{ env.TARGET_ENV }}/tfplan
 
       - name: Upload App Source
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-source-${{ env.TARGET_ENV }}
           path: |
@@ -130,7 +130,7 @@ jobs:
         run: terraform init
 
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: tfplan-${{ env.TARGET_ENV }}
           path: aws/environments/${{ env.TARGET_ENV }}
@@ -145,7 +145,7 @@ jobs:
         run: terraform output
 
       - name: Download App Source
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: app-source-${{ env.TARGET_ENV }}
           path: .
@@ -154,6 +154,7 @@ jobs:
         run: zip -r app-release.zip app docker-compose.yml
 
       - name: Upload App Release to S3
+        working-directory: .
         run: |
           aws s3 cp app-release.zip s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip
 
