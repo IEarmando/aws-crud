@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - dev
-      - pre
 
   workflow_dispatch:
     inputs:
@@ -31,20 +30,19 @@ concurrency:
 
 jobs:
   terraform-execution:
-    name: ${{ inputs.action }} on ${{ inputs.environment }}
+    name: Terraform Execution
     runs-on: ubuntu-latest
 
     env:
       TF_IN_AUTOMATION: true
       TF_VAR_aws_region: us-east-1
-      # Selección dinámica de secretos según el ambiente elegido
-      TF_VAR_db_name: ${{ secrets.DB_NAME }}
-      TF_VAR_db_username: ${{ inputs.environment == 'prod' && secrets.PROD_DB_USER || secrets.DB_USER }}
-      TF_VAR_db_password: ${{ inputs.environment == 'prod' && secrets.PROD_DB_PASSWORD || secrets.DB_PASSWORD }}
+      # Si viene por push a dev usa dev, si viene por push a pre/main usa prod, o usa el input manual
+      TARGET_ENV: ${{ github.event_name == 'push' && (github.ref_name == 'dev' && 'dev' || 'prod') || inputs.environment }}
 
     defaults:
       run:
-        working-directory: aws/environments/${{ inputs.environment }}
+        # Apuntamos dinámicamente a la carpeta correcta según el ambiente detectado
+        working-directory: aws/environments/${{ env.TARGET_ENV }}
 
     steps:
       - name: Checkout Code
