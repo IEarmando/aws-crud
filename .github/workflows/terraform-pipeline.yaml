@@ -177,7 +177,7 @@ jobs:
               'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
               'echo APP_PORT=${APP_PORT} >> /opt/app/.env',
               'echo PHPMYADMIN_PORT=${PMA_PORT} >> /opt/app/.env',
-              'echo APP_ENV=$(echo ${{ env.TARGET_ENV }} | tr "[:lower:]" "[:upper:]") >> /opt/app/.env',
+              'echo APP_ENV=${{ env.TARGET_ENV }} >> /opt/app/.env',
               'docker compose --env-file .env up -d --build'
             ]" \
             --query "Command.CommandId" \
