@@ -336,6 +336,53 @@ resource "aws_db_instance" "mysql" {
 }
 
 # ============================================================
+# CloudWatch Alarms
+# ============================================================
+
+# Grupo de Logs en CloudWatch
+resource "aws_cloudwatch_log_group" "app_logs" {
+  name              = "/aws/ec2/crud-app-${var.environment}"
+  retention_in_days = 7
+
+  tags = {
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# ============================================================
+# IAM Role Policy for EC2 to access S3 and CloudWatch Logs
+# ============================================================
+
+resource "aws_iam_role_policy" "ec2_app_s3_read" {
+  name = "${var.project_name}-${var.environment}-s3-app-read"
+  role = aws_iam_role.ec2_ssm.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "arn:aws:s3:::terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/dev/*"
+      },
+      # 👇 AGREGA ESTOS PERMISOS PARA CLOUDWATCH 👇
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "${aws_cloudwatch_log_group.app_logs.arn}:*"
+      }
+    ]
+  })
+}
+
+
+# ============================================================
 # EC2
 # ============================================================
 
