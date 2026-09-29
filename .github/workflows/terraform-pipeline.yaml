@@ -194,7 +194,7 @@ jobs:
           payload: |
             {
               "channel": "C0BV7BFRWUU",
-              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *CI/CD Workflow Master (Apply -${{ env.TARGET_ENV }})*\n*Repositorio:* ${{ github.repository }}\n*Estado:*${{ job.status }}\n*Origen:* `${{ github.ref_name }}` -> *Destino:* `${{ env.TARGET_ENV }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *CI/CD Workflow Master (Apply -${{ env.TARGET_ENV }})*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Origen:* `${{ github.ref_name }}` -> *Destino:* `${{ env.TARGET_ENV }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
             }
 
             
