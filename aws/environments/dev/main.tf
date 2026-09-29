@@ -360,13 +360,6 @@ resource "aws_cloudwatch_log_group" "app_logs" {
   }
 }
 
-#============================================================
-# SNS TOPIC FOR CLOUDWATCH ALERTS
-#============================================================
-resource "aws_sns_topic" "cloudwatch_alerts" {
-  name = "${var.project_name}-${var.environment}-cloudwatch-alerts"
-}
-
 # ============================================================
 # CLOUDWATCH ALARM: USO ELEVADO DE CPU (> 80%)
 # ============================================================
@@ -385,8 +378,6 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   dimensions = {
     InstanceId = aws_instance.web.id
   }
-
-  alarm_actions = [aws_sns_topic.cloudwatch_alerts.arn]
 
   tags = {
     Environment = var.environment
