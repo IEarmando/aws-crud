@@ -359,6 +359,30 @@ resource "aws_cloudwatch_log_group" "app_logs" {
     ManagedBy   = "Terraform"
   }
 }
+# ============================================================
+# CLOUDWATCH ALARM: USO ELEVADO DE CPU (> 80%)
+# ============================================================
+
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name          = "${var.project_name}-${var.environment}-high-cpu"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 120
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Alerta: El uso de CPU en la instancia EC2 superó el 80%."
+
+  dimensions = {
+    InstanceId = aws_instance.web.id
+  }
+
+  tags = {
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
 
 # ============================================================
 # EC2
