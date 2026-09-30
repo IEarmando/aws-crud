@@ -1,6 +1,6 @@
-- name: Configurar servidor web con Docker y herramientas de despliegue
+- name: Configurar servidor web, Docker y desplegar Aplicacion CRUD
   hosts: web_server
-  become: yes # Esto activa el 'sudo' para tener permisos de administrador en la EC2
+  become: yes
 
   tasks:
     - name: Actualizar todos los paquetes del sistema operativo (DNF)
@@ -19,7 +19,7 @@
         state: started
         enabled: yes
 
-    - name: Agregar al usuario ec2-user al grupo de docker (para no usar sudo al correr docker)
+    - name: Agregar al usuario ec2-user al grupo de docker
       user:
         name: ec2-user
         groups: docker
@@ -32,3 +32,42 @@
         owner: ec2-user
         group: ec2-user
         mode: '0755'
+
+    # ==========================================================
+    # DESPLIEGUE DE LA APLICACIÓN (CRUD + PHPMyAdmin)
+    # ==========================================================
+
+    - name: Descargar paquete de la app desde S3
+      aws_s3:
+        bucket: terraform-state-ec2-lab-141553305029-us-east-1-an
+        object: app-releases/dev/app-release.zip
+        dest: /opt/app.zip
+        mode: get
+      environment:
+        AWS_DEFAULT_REGION: us-east-1
+
+    - name: Descomprimir la aplicación en /opt/app
+      unarchive:
+        src: /opt/app.zip
+        dest: /opt/app/
+        remote_src: yes
+
+    - name: Crear archivo .env usando los secretos del pipeline
+      copy:
+        dest: /opt/app/.env
+        content: |
+          DB_HOST={{ lookup('env', 'RDS_ENDPOINT') }}
+          DB_NAME={{ lookup('env', 'DB_NAME') }}
+          DB_USER={{ lookup('env', 'DB_USER') }}
+          DB_PASSWORD={{ lookup('env', 'DB_PASSWORD') }}
+          APP_PORT={{ lookup('env', 'APP_PORT') }}
+          PHPMYADMIN_PORT={{ lookup('env', 'PHPMYADMIN_PORT') }}
+          APP_ENV={{ lookup('env', 'TARGET_ENV') }}
+        owner: ec2-user
+        group: ec2-user
+        mode: '0644'
+
+    - name: Levantar contenedores con Docker Compose
+      command: docker compose --env-file .env up -d --build
+      args:
+        chdir: /opt/app
