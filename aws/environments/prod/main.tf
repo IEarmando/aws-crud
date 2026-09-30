@@ -102,9 +102,6 @@ resource "aws_route_table_association" "public" {
 # ============================================================
 # PRIVATE ROUTE TABLE
 # ============================================================
-# La tabla solamente utiliza la ruta local de la VPC.
-#
-# EC2 -> RDS funciona mediante la red interna de la VPC.
 
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
@@ -142,6 +139,17 @@ resource "aws_security_group" "web" {
   tags = {
     Name = "${var.project_name}-${var.environment}-sg"
   }
+}
+
+# ============================================================
+# EC2 - SSH PORT (Puerto 22 para Ansible)
+# ============================================================
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  security_group_id = aws_security_group.web.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
 }
 
 # ============================================================
@@ -194,13 +202,6 @@ resource "aws_security_group" "rds" {
 # ============================================================
 # RDS - ALLOW MYSQL FROM EC2
 # ============================================================
-#
-# NO usamos 0.0.0.0/0.
-#
-# Solamente las instancias que tengan el Security Group
-# "web" podrán conectarse al RDS por TCP 3306.
-#
-# ============================================================
 
 resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_ec2" {
   security_group_id            = aws_security_group.rds.id
@@ -251,8 +252,6 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 
 # ============================================================
 # S3 PERMISSION FOR EC2
-#
-# Allows EC2 to download the CRUD release from S3.
 # ============================================================
 
 resource "aws_iam_role_policy" "ec2_app_s3_read" {
@@ -343,6 +342,7 @@ resource "aws_instance" "web" {
   ami           = "ami-0bd3fbcdc633a1b1a"
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
+  key_name      = "lab-key"
 
   vpc_security_group_ids = [
     aws_security_group.web.id
@@ -355,69 +355,6 @@ resource "aws_instance" "web" {
     aws_iam_role_policy_attachment.ssm_core,
     aws_iam_role_policy.ec2_app_s3_read
   ]
-
-  user_data_replace_on_change = false
-
-  user_data = <<-EOF
-  #!/bin/bash
-  set -e
-
-  # ==========================================
-  # APPLICATION DIRECTORY
-  # ==========================================
-  mkdir -p /opt/app
-  chown ec2-user:ec2-user /opt/app
-
-  # ==========================================
-  # UPDATE SYSTEM
-  # ==========================================
-  dnf update -y
-
-  # ==========================================
-  # DOCKER
-  # ==========================================
-  dnf install -y docker
-
-  systemctl enable docker
-  systemctl start docker
-
-  usermod -aG docker ec2-user
-
-  # ==========================================
-  # DOCKER COMPOSE
-  # ==========================================
-  mkdir -p /usr/local/lib/docker/cli-plugins
-
-  curl -fSL \
-    https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose
-
-  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-
-  # ==========================================
-  # DOCKER BUILDX
-  # ==========================================
-  BUILDX_VERSION="v0.17.0"
-
-  curl -fSL \
-    "https://github.com/docker/buildx/releases/download/$${BUILDX_VERSION}/buildx-$${BUILDX_VERSION}.linux-amd64" \
-    -o /usr/local/lib/docker/cli-plugins/docker-buildx
-
-  chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
-
-  # ==========================================
-  # VERIFY INSTALLATION
-  # ==========================================
-  docker --version
-  docker compose version
-  docker buildx version
-
-  # ==========================================
-  # BOOTSTRAP COMPLETE
-  # ==========================================
-  touch /opt/app/.instance-ready
-
-EOF
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-ec2"
