@@ -71,10 +71,19 @@
         group: ec2-user
         mode: '0644'
 
+    - name: Crear directorio de plugins de Docker si no existe
+      file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: '0755'
+
+    - name: Descargar Docker Compose oficial directamente
+      get_url:
+        url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: '0755'
+
     - name: Levantar contenedores con Docker Compose
-      community.docker.docker_compose_v2:
-        project_src: /opt/app
-        state: present
-        build: always
-        env_files:
-          - .env
+      command: docker compose up -d --build
+      args:
+        chdir: /opt/app    
