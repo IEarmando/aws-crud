@@ -155,7 +155,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           # Extraemos la IP pública recién creada por Terraform
-          INSTANCE_IP=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw instance_ip)
+          INSTANCE_IP=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw public_ip)
           
           # Generamos el inventario dinámicamente al vuelo
           echo "[web_server]" > hosts.ini
