@@ -93,7 +93,7 @@ jobs:
   # JOB 2: APPLY (Solo corre manual con el botón)
   # ==========================================
   terraform-apply:
-    name: Terraform Apply & Deploy
+    name: Terraform Apply & Deploy ${{ inputs.environment }}
     needs: terraform-plan
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'apply' }}
     runs-on: ubuntu-latest

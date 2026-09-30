@@ -72,6 +72,8 @@
         mode: '0644'
 
     - name: Levantar contenedores con Docker Compose
-      command: docker compose up -d --build
-      args:
-        chdir: /opt/app
+      community.docker.docker_compose_v2:
+        project_src: /opt/app
+        state: present
+        build: always
+        env_file: .env
