@@ -37,12 +37,16 @@
     # DESPLIEGUE DE LA APLICACIÓN (CRUD + PHPMyAdmin)
     # ==========================================================
 
-    - name: Descargar paquete de la app desde S3
-      aws_s3:
-        bucket: terraform-state-ec2-lab-141553305029-us-east-1-an
-        object: app-releases/dev/app-release.zip
-        dest: /opt/app.zip
-        mode: get
+    - name: Asegurar que aws-cli está instalado en el servidor
+      dnf:
+        name: awscli
+        state: present
+
+    - name: Descargar paquete de la app desde S3 usando aws-cli
+      command: >
+        aws s3 cp 
+        s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/{{ lookup('env', 'TARGET_ENV') }}/app-release.zip 
+        /opt/app.zip
       environment:
         AWS_DEFAULT_REGION: us-east-1
 
