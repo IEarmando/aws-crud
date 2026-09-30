@@ -71,6 +71,11 @@
         group: ec2-user
         mode: '0644'
 
+    - name: Instalar el plugin de Docker Compose
+      dnf:
+        name: docker-compose-plugin
+        state: present    
+
     - name: Levantar contenedores con Docker Compose
       community.docker.docker_compose_v2:
         project_src: /opt/app
