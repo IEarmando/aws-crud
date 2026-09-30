@@ -1,0 +1,34 @@
+- name: Configurar servidor web con Docker y herramientas de despliegue
+  hosts: web_server
+  become: yes # Esto activa el 'sudo' para tener permisos de administrador en la EC2
+
+  tasks:
+    - name: Actualizar todos los paquetes del sistema operativo (DNF)
+      dnf:
+        name: "*"
+        state: latest
+
+    - name: Instalar el servicio de Docker
+      dnf:
+        name: docker
+        state: present
+
+    - name: Habilitar y encender el servicio de Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Agregar al usuario ec2-user al grupo de docker (para no usar sudo al correr docker)
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    - name: Crear la carpeta base de la aplicación en /opt/app
+      file:
+        path: /opt/app
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+        mode: '0755'

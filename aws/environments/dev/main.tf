@@ -393,6 +393,7 @@ resource "aws_instance" "web" {
   ami           = "ami-0bd3fbcdc633a1b1a"
   instance_type = var.instance_type
   subnet_id     = aws_subnet.public.id
+  key_name      = "lab-key"
 
   vpc_security_group_ids = [
     aws_security_group.web.id
