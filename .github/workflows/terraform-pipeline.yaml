@@ -1,4 +1,4 @@
-name: Terraform Master Pipeline
+name: Terraform Pipeline
 
 on:
   # El plan corre SIEMPRE de forma automática con cada push
