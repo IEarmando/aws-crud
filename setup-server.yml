@@ -76,4 +76,5 @@
         project_src: /opt/app
         state: present
         build: always
-        env_file: .env
+        env_files:
+          - .env
