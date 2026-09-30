@@ -1,4 +1,4 @@
-Cloud-Native GitOps Infrastructure & Automation Lab
+# Cloud-Native GitOps Infrastructure & Automation Lab
 
 :pushpin: Descripción del Proyecto
 Infraestructura como Código (IaC) de grado de producción y pipeline de integración y despliegue continuo (CI/CD) implementados en AWS bajo un modelo GitOps. El proyecto automatiza el aprovisionamiento de infraestructura pura y la configuración multi-entorno (dev, prod) de una aplicación web basada en PHP/Apache y bases de datos relacionales con contenedores Docker, garantizando una estricta separación de poderes entre Terraform (Infraestructura) y Ansible (Configuración y Despliegue).
