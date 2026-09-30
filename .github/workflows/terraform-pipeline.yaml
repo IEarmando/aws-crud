@@ -140,50 +140,40 @@ jobs:
       - name: Terraform Outputs
         run: terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output
 
-      - name: Download App Source
-        uses: actions/download-artifact@v7
-        with:
-          name: app-source-${{ env.TARGET_ENV }}
-          path: .
-
-      - name: Package App Release
-        run: zip -r app-release.zip app/ docker-compose.yml
-
-      - name: Upload App Release to S3
+      - name: Install Ansible
         run: |
-          aws s3 cp app-release.zip s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip
+          sudo apt-get update
+          sudo apt-get install -y ansible
 
-      - name: Deploy CRUD via SSM
+      - name: Setup SSH Key for Ansible
         run: |
-          INSTANCE_ID=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw instance_id)
-          RDS_ENDPOINT=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw rds_endpoint)
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > lab-key.pem
+          chmod 600 lab-key.pem
+
+      - name: Run Ansible Playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          # Inyectamos aquí los secretos que ya tienes en GitHub Actions:
+          RDS_ENDPOINT: ${{ steps.tf-outputs.outputs.rds_endpoint }} # (O extraído con output)
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          APP_PORT: ${{ env.TARGET_ENV == 'prod' && '8084' || '8082' }}
+          PHPMYADMIN_PORT: ${{ env.TARGET_ENV == 'prod' && '8085' || '8081' }}
+          TARGET_ENV: ${{ env.TARGET_ENV }}
+        run: |
+          # Extraemos la IP pública recién creada por Terraform
+          INSTANCE_IP=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw public_ip)
           
-          APP_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8084" || echo "8082")
-          PMA_PORT=$([ "${{ env.TARGET_ENV }}" = "prod" ] && echo "8085" || echo "8081")
+          # También podemos exportar el RDS endpoint aquí si prefieres capturarlo al vuelo:
+          export RDS_ENDPOINT=$(terraform -chdir=aws/environments/${{ env.TARGET_ENV }} output -raw rds_endpoint)
 
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters commands="[
-              'set -e',
-              'if ! cloud-init status --wait; then exit 1; fi',
-              'mkdir -p /opt/app',
-              'aws s3 cp s3://terraform-state-ec2-lab-141553305029-us-east-1-an/app-releases/${{ env.TARGET_ENV }}/app-release.zip /opt/app.zip',
-              'cd /opt/app',
-              'unzip -o /opt/app.zip',
-              'echo DB_HOST=${RDS_ENDPOINT} > /opt/app/.env',
-              'echo DB_NAME=${{ secrets.DB_NAME }} >> /opt/app/.env',
-              'echo DB_USER=${{ secrets.DB_USER }} >> /opt/app/.env',
-              'echo DB_PASSWORD=${{ secrets.DB_PASSWORD }} >> /opt/app/.env',
-              'echo APP_PORT=${APP_PORT} >> /opt/app/.env',
-              'echo PHPMYADMIN_PORT=${PMA_PORT} >> /opt/app/.env',
-              'echo APP_ENV=$(echo ${{ env.TARGET_ENV }} | tr "[:lower:]" "[:upper:]") >> /opt/app/.env',
-              'docker compose --env-file .env up -d --build'
-            ]" \
-            --query "Command.CommandId" \
-            --output text)
+          # Generamos el inventario dinámicamente al vuelo
+          echo "[web_server]" > hosts.ini
+          echo "$INSTANCE_IP ansible_user=ec2-user ansible_ssh_private_key_file=./lab-key.pem" >> hosts.ini
 
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
+          # Ejecutamos la automatización con Ansible heredando el entorno
+          ansible-playbook -i hosts.ini setup-server.yml 
 
       - name: Notify Slack
         if: always()
@@ -194,5 +184,7 @@ jobs:
           payload: |
             {
               "channel": "C0BV7BFRWUU",
-              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Workflow Master (Apply - ${{ env.TARGET_ENV }})*\n*Estado:* ${{ job.status }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs>"
+              "text": "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *CI/CD Workflow Master (Apply -${{ env.TARGET_ENV }})*\n*Repositorio:* ${{ github.repository }}\n*Estado:* ${{ job.status }}\n*Origen:* `${{ github.ref_name }}` -> *Destino:* `${{ env.TARGET_ENV }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs del despliegue>"
             }
+
+            

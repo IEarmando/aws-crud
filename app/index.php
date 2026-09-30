@@ -38,6 +38,7 @@ $resultado = $conexion->query("SELECT id, nombre, fecha FROM usuarios ORDER BY i
     <meta charset="UTF-8">
     <title>Terraform registered users</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="img/terraform_icono.png">
 </head>
 <body>
 
